@@ -1,5 +1,6 @@
 numpy
 opencv-python
+tqdm
 Pillow
 scipy
 seaborn
