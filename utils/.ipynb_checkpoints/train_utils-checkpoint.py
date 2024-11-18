@@ -21,8 +21,6 @@ def train_one_epoch(model, optimizer, data_loader, device, criterion, scheduler=
 
         if scheduler:
             scheduler.step()
-        
-        print(f"Image batch type: {type(images)}, shape: {images[0].shape if isinstance(images[0], torch.Tensor) else 'N/A'}")
 
     return epoch_loss / len(data_loader)
 

@@ -13,7 +13,7 @@ VAL_CHECKPOINT_FILE = "checkpoints"
 
 # Model settings
 NUM_CLASSES = 4
-IMAGE_SIZE = (320, 320)
+IMAGE_SIZE = (640, 640)
 
 # Training settings
 BATCH_SIZE = 8

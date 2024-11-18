@@ -16,5 +16,4 @@ class MobileNetV3Backbone(nn.Module):
             x = layer(x)
             if i in {2, 4, 12}:  # Example indices
                 features.append(x)
-        print(f"Feature map shapes: {[f.shape for f in features]}")
         return features
