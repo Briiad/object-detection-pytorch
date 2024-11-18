@@ -19,7 +19,6 @@ import torchvision.transforms as T
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import MultiStepLR
-from models import DetectionModel
 from data import CustomDataset
 from utils import train_one_epoch
 from utils import *
@@ -30,8 +29,14 @@ from utils import train_one_epoch, evaluate
 from utils.custom_utils import Averager
 
 # Initialize dataset and dataloaders
-train_dataset = CustomDataset(IMAGE_DIR, ANNOTATIONS_FILE, transforms=T.ToTensor())
-val_dataset = CustomDataset(VAL_IMAGE_DIR, VAL_ANNOTATIONS_FILE, transforms=T.ToTensor())
+train_dataset = CustomDataset(IMAGE_DIR, ANNOTATIONS_FILE, transform=[
+  T.Resize((640, 640)),
+  T.ToTensor()
+])
+val_dataset = CustomDataset(VAL_IMAGE_DIR, VAL_ANNOTATIONS_FILE, transform=[
+  T.Resize((640, 640)),
+  T.ToTensor()
+])
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
@@ -47,16 +52,16 @@ scheduler = MultiStepLR(optimizer, milestones=[5, 8], gamma=0.1)
 
 # Training loop
 for epoch in range(NUM_EPOCHS):
-  print(f"Epoch {epoch+1}/{NUM_EPOCHS}")
-  train_loss = train_one_epoch(model, optimizer, train_loader, DEVICE, criterion=None, scheduler=scheduler)
-  print(f"Training Loss: {train_loss:.4f}")
+    print(f"Epoch {epoch+1}/{NUM_EPOCHS}")
+    train_loss = train_one_epoch(model, optimizer, train_loader, DEVICE, criterion=None, scheduler=scheduler)
+    print(f"Training Loss: {train_loss:.4f}")
   
-  if (epoch + 1) % 2 == 0:
-    results = evaluate(model, val_loader, DEVICE, criterion=None)
-    print(f"Validation Results: {results}")
+    if (epoch + 1) % 2 == 0:
+        results = evaluate(model, val_loader, DEVICE, criterion=None)
+        print(f"Validation Results: {results}")
 
-  if scheduler:
-    scheduler.step()
+    if scheduler:
+        scheduler.step()
 
-  # Save checkpoint
-  torch.save(model.state_dict(), os.path.join(VAL_CHECKPOINT_FILE, f"model_epoch_{epoch+1}.pth"))
+    # Save checkpoint
+    torch.save(model.state_dict(), os.path.join(VAL_CHECKPOINT_FILE, f"model_epoch_{epoch+1}.pth"))
