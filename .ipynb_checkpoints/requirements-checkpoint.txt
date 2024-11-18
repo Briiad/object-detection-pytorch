@@ -1,9 +1,0 @@
-numpy
-opencv-python
-tqdm
-Pillow
-scipy
-seaborn
-scikit-learn
-torchgeometry==0.1.2
-torchmetrics==1.4.0

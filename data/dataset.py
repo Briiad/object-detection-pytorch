@@ -1,65 +1,33 @@
-import os
-import json
-from PIL import Image
-from torch.utils.data import Dataset
-import torch
+def load_annotations(self, annotations_file):
+  with open(annotations_file, 'r') as file:
+    coco = json.load(file)
 
-class CustomDataset(Dataset):
-    """
-    Dataset for COCO-format annotations.
-    
-    Args:
-        image_dir (str): Directory containing images.
-        annotations_file (str): Path to COCO-style annotations JSON file.
-        transform (callable, optional): Transform to apply to images.
-    """
-    def __init__(self, image_dir, annotations_file, transform=None):
-        self.image_dir = image_dir
-        self.transform = transform
-        self.annotations = self.load_annotations(annotations_file)
+  # Print dataset statistics
+  print(f"Total images: {len(coco['images'])}")
+  print(f"Total annotations: {len(coco['annotations'])}")
+  
+  # Count annotations per category
+  category_counts = {}
+  for ann in coco['annotations']:
+    cat_id = ann['category_id']
+    category_counts[cat_id] = category_counts.get(cat_id, 0) + 1
+  
+  print("\nAnnotations per category:")
+  for cat in coco['categories']:
+    count = category_counts.get(cat['id'], 0)
+    print(f"Category {cat['name']}: {count}")
 
-    def load_annotations(self, annotations_file):
-        with open(annotations_file, 'r') as file:
-            coco = json.load(file)
+  # Continue with the existing code...
+  annotations = {}
+  for annotation in coco['annotations']:
+    image_id = annotation['image_id']
+    bbox = annotation['bbox']
+    label = annotation['category_id']
 
-        # Map image_id to annotations
-        annotations = {}
-        for annotation in coco['annotations']:
-            image_id = annotation['image_id']
-            bbox = annotation['bbox']  # COCO format: [x, y, width, height]
-            label = annotation['category_id']
+    if image_id not in annotations:
+      annotations[image_id] = {"boxes": [], "labels": []}
+    annotations[image_id]["boxes"].append(bbox)
+    annotations[image_id]["labels"].append(label)
 
-            if image_id not in annotations:
-                annotations[image_id] = {"boxes": [], "labels": []}
-            annotations[image_id]["boxes"].append(bbox)
-            annotations[image_id]["labels"].append(label)
-
-        # Store image info
-        self.image_info = {img['id']: img for img in coco['images']}
-        return annotations
-
-    def __len__(self):
-        return len(self.image_info)
-
-    def __getitem__(self, idx):
-        image_id = list(self.image_info.keys())[idx]
-        image_info = self.image_info[image_id]
-        image_path = os.path.join(self.image_dir, image_info['file_name'])
-        image = Image.open(image_path).convert("RGB")
-
-        if image_id not in self.annotations:
-            # Skip this image if no annotations are found
-            return self.__getitem__((idx + 1) % len(self))
-
-        target = self.annotations[image_id]
-
-        if self.transform:
-            image = self.transform(image)
-
-        # Convert target to tensor format
-        target = {
-            "boxes": torch.tensor(target["boxes"], dtype=torch.float32),
-            "labels": torch.tensor(target["labels"], dtype=torch.int64),
-        }
-
-        return image, target
+  self.image_info = {img['id']: img for img in coco['images']}
+  return annotations

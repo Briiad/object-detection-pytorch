@@ -1,2 +1,3 @@
 from models.model import DetectionModel
-__all__ = ['DetectionModel']
+from models.customModel import CustomModel
+__all__ = ['DetectionModel', 'CustomModel']

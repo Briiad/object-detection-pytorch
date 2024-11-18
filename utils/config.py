@@ -17,6 +17,6 @@ IMAGE_SIZE = (640, 640)
 
 # Training settings
 BATCH_SIZE = 8
-LEARNING_RATE = 1e-3
+LEARNING_RATE =5e-3
 NUM_EPOCHS = 10
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
