@@ -1,9 +1,8 @@
 import os
 import json
 from PIL import Image
-import torch
 from torch.utils.data import Dataset
-from torchvision import transforms
+import torch
 
 class CustomDataset(Dataset):
     """
@@ -48,16 +47,19 @@ class CustomDataset(Dataset):
         image_path = os.path.join(self.image_dir, image_info['file_name'])
         image = Image.open(image_path).convert("RGB")
 
-        # Get annotations for this image
+        if image_id not in self.annotations:
+            # Skip this image if no annotations are found
+            return self.__getitem__((idx + 1) % len(self))
+
         target = self.annotations[image_id]
 
-        # Convert boxes to tensors and adjust format (COCO uses [x, y, w, h])
-        target["boxes"] = torch.tensor(target["boxes"], dtype=torch.float32)
-        target["boxes"][:, 2:] += target["boxes"][:, :2]  # Convert [x, y, w, h] -> [x_min, y_min, x_max, y_max]
-        target["labels"] = torch.tensor(target["labels"], dtype=torch.int64)
-
-        # Apply transforms to the image
         if self.transform:
             image = self.transform(image)
+
+        # Convert target to tensor format
+        target = {
+            "boxes": torch.tensor(target["boxes"], dtype=torch.float32),
+            "labels": torch.tensor(target["labels"], dtype=torch.int64),
+        }
 
         return image, target

@@ -5,6 +5,11 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, project_root)
 
 import torch
+if torch.cuda.is_available():
+    torch.cuda.init()
+torch.backends.cudnn.enabled = True
+torch.backends.cudnn.benchmark = True
+
 import torchvision.transforms as T
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -25,7 +30,16 @@ train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, co
 # Initialize the model, optimizer, and loss function
 model = DetectionModel(num_classes=NUM_CLASSES).to(DEVICE)
 optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
-criterion = torch.nn.CrossEntropyLoss()
+def custom_criterion(cls_preds, box_preds, targets):
+    labels = [target['labels'] for target in targets]
+    boxes = [target['boxes'] for target in targets]
+    
+    cls_loss = torch.nn.functional.cross_entropy(cls_preds, torch.stack(labels))
+    box_loss = torch.nn.functional.mse_loss(box_preds, torch.stack(boxes))
+
+    return cls_loss + box_loss
+
+criterion = custom_criterion
 
 # Initialize metrics
 metrics = DetectionMetrics()
