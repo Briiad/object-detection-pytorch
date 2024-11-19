@@ -8,6 +8,7 @@ train_loss_history = Averager()
 
 def train_one_epoch(model, optimizer, data_loader, device, criterion, scheduler=None):
     model.train()
+    
     progress = tqdm(data_loader, desc="Training", leave=False, total=len(data_loader))
     
     for i, data in enumerate(progress):
@@ -16,6 +17,11 @@ def train_one_epoch(model, optimizer, data_loader, device, criterion, scheduler=
         
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        
+        # Check if targets are empty
+        if any(len(t['boxes']) == 0 for t in targets):
+            continue
+        
         loss_dict = model(images, targets)
         
         losses = sum(loss for loss in loss_dict.values())
@@ -26,7 +32,7 @@ def train_one_epoch(model, optimizer, data_loader, device, criterion, scheduler=
         losses.backward()
         optimizer.step()
         
-        progress.set_description(f"Training Loss: {loss_value:.4f}")
+        progress.set_description(f"Training Loss: {train_loss_history.value:.4f}")
     return loss_value
 
 def evaluate(model, data_loader, device, criterion):

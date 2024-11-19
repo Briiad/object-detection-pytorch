@@ -1,56 +1,25 @@
-import torchvision
 import torch.nn as nn
+import torch
+import torchvision
+from torchvision.models.detection import ssdlite320_mobilenet_v3_large as MobileNetV3
 
-from torchvision.models import mobilenet_v3_large as MobileNetV3
-from torchvision.ops import FeaturePyramidNetwork as FPN
-from torchvision.models.detection.ssd import (
-  SSD, 
-  DefaultBoxGenerator,
-  SSDHead
-)
-
-# MODEL FOR SSD WITH MOBILENETV3 BACKBONE AND FPN HEAD
 class CustomModel(nn.Module):
     def __init__(self, num_classes=4):
         super().__init__()
 
-        # Create MobileNetV3 backbone
-        backbone = MobileNetV3(
-            weights=torchvision.models.MobileNet_V3_Large_Weights.DEFAULT
-        ).features
-
-        # Define output channels for FPN
-        return_layers = {
-            '6': '0',    # stride 8
-            '12': '1',   # stride 16
-            '16': '2'    # stride 32
-        }
-
-        # Create Feature Pyramid Network
-        in_channels = 960
-        out_channels = 256
-
-        self.backbone = torchvision.models._utils.IntermediateLayerGetter(
-            backbone, return_layers)
-        self.fpn = FPN([in_channels] * 3, out_channels)
-
-        # Create SSD head
-        anchor_generator = DefaultBoxGenerator([[2, 3] for _ in range(6)])
-        head = SSDHead([out_channels] * 3, anchor_generator.num_anchors_per_location(), num_classes)
-
-        # Combine into SSD
-        self.model = SSD(
-            backbone=self.backbone,
-            neck=self.fpn,
-            head=head,
-            anchor_generator=anchor_generator,
-            size=(640, 640),
-            num_classes=4
+        # Load pretrained MobileNetV3 backbone
+        mobilenet = MobileNetV3(
+          weights=torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
         )
+        
+        self.model = mobilenet
 
-        # Print total parameters
-        total_params = sum(p.numel() for p in self.parameters())
-        print(f'Total parameters: {total_params:,}')
+        # Print the number of parameters
+        self.print_num_parameters()
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, images, targets=None):
+        return self.model(images, targets)
+
+    def print_num_parameters(self):
+        total_params = sum(p.numel() for p in self.model.parameters())
+        print(f'Total number of parameters: {total_params}')

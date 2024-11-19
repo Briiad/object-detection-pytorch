@@ -2,59 +2,67 @@ import torch
 from utils.metrics import DetectionMetrics
 from tqdm import tqdm
 
+from utils.custom_utils import Averager
+
+train_loss_history = Averager()
+
 def train_one_epoch(model, optimizer, data_loader, device, criterion, scheduler=None):
     model.train()
-    epoch_loss = 0.0
-    for images, targets in tqdm(data_loader, desc="Training"):
-        # Stack images into a single batch tensor
-        images = torch.stack(images).to(device)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
+    
+    progress = tqdm(data_loader, desc="Training", leave=False, total=len(data_loader))
+    
+    for i, data in enumerate(progress):
         optimizer.zero_grad()
-        cls_preds, box_preds = model(images)
-
-        # Calculate losses
-        loss = criterion(cls_preds, box_preds, targets)
-        loss.backward()
+        images, targets = data
+        
+        images = list(image.to(device) for image in images)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        
+        # Check if targets are empty
+        if any(len(t['boxes']) == 0 for t in targets):
+            continue
+        
+        loss_dict = model(images, targets)
+        
+        losses = sum(loss for loss in loss_dict.values())
+        loss_value = losses.item()
+        
+        train_loss_history.send(loss_value)
+        
+        losses.backward()
         optimizer.step()
-        epoch_loss += loss.item()
-
-        if scheduler:
-            scheduler.step()
-
-    return epoch_loss / len(data_loader)
+        
+        progress.set_description(f"Training Loss: {train_loss_history.value:.4f}")
+    return loss_value
 
 def evaluate(model, data_loader, device, criterion):
     model.eval()
+    progress = tqdm(data_loader, desc="Evaluating", leave=False, total=len(data_loader))
+    
+    targets = []
+    preds = []
+    
+    for i, data in enumerate(progress):
+        images, target = data
+        
+        images = list(image.to(device) for image in images)
+        target = [{k: v.to(device) for k, v in t.items()} for t in target]
+        
+        with torch.no_grad():
+            output = model(images)
+        
+        for i in range (len(images)):
+            true_dict = dict()
+            preds_dict = dict()
+            true_dict['boxes'] = targets[i]['boxes'].detach().cpu()
+            true_dict['labels'] = targets[i]['labels'].detach().cpu()
+            preds_dict['boxes'] = output[i]['boxes'].detach().cpu()
+            preds_dict['scores'] = output[i]['scores'].detach().cpu()
+            preds_dict['labels'] = output[i]['labels'].detach().cpu()
+            preds.append(preds_dict)
+            target.append(true_dict)
+    
     metrics = DetectionMetrics()
-    epoch_loss = 0.0
-
-    with torch.no_grad():
-        for images, targets in data_loader:
-            images = [img.to(device) for img in images]
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-            # Model predictions
-            cls_preds, box_preds = model(images)
-
-            # Convert model outputs to expected format
-            preds = []
-            for cls_pred, box_pred in zip(cls_preds, box_preds):
-                preds.append({
-                    "boxes": box_pred.cpu(),
-                    "scores": torch.sigmoid(cls_pred).cpu(),  # Adjust based on your activation function
-                    "labels": torch.argmax(cls_pred, dim=1).cpu(),
-                })
-
-            # Update metrics
-            metrics.update(preds, targets)
-
-            # Compute loss for logging
-            loss = criterion(cls_preds, box_preds, targets)
-            epoch_loss += loss.item()
-
-    # Compute final metrics
-    metric_results = metrics.compute()
-    metrics.reset()
-
-    return epoch_loss / len(data_loader), metric_results
+    metrics.update(preds, targets)
+    results = metrics.compute()
+    return results

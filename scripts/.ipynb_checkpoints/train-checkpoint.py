@@ -10,11 +10,6 @@ if torch.cuda.is_available():
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
-seed = 42
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-torch.cuda.manual_seed_all(seed) 
-
 import torchvision.transforms as T
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -28,15 +23,23 @@ from models import CustomModel
 from utils import train_one_epoch, evaluate
 from utils.custom_utils import Averager
 
-# Initialize dataset and dataloaders
-train_dataset = CustomDataset(IMAGE_DIR, ANNOTATIONS_FILE, transform=[
-  T.Resize((640, 640)),
-  T.ToTensor()
+train_transforms = T.Compose([
+    T.Resize((640, 640)),
+    T.ToTensor(),
+    T.Lambda(lambda x: x.repeat(3, 1, 1) if x.shape[0] == 1 else x)  # Ensure RGB
 ])
-val_dataset = CustomDataset(VAL_IMAGE_DIR, VAL_ANNOTATIONS_FILE, transform=[
-  T.Resize((640, 640)),
-  T.ToTensor()
-])
+
+train_dataset = CustomDataset(
+    IMAGE_DIR, 
+    ANNOTATIONS_FILE, 
+    transform=train_transforms
+)
+
+val_dataset = CustomDataset(
+    VAL_IMAGE_DIR, 
+    VAL_ANNOTATIONS_FILE, 
+    transform=train_transforms
+)
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
