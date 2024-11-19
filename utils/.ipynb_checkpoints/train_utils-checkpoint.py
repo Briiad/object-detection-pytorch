@@ -39,30 +39,30 @@ def evaluate(model, data_loader, device, criterion):
     model.eval()
     progress = tqdm(data_loader, desc="Evaluating", leave=False, total=len(data_loader))
     
-    targets = []
-    preds = []
+    all_targets = []
+    all_preds = []
     
     for i, data in enumerate(progress):
-        images, target = data
+        images, targets = data
         
         images = list(image.to(device) for image in images)
-        target = [{k: v.to(device) for k, v in t.items()} for t in target]
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
         
         with torch.no_grad():
-            output = model(images)
+            outputs = model(images)
         
-        for i in range (len(images)):
+        for i in range(len(images)):
             true_dict = dict()
             preds_dict = dict()
             true_dict['boxes'] = targets[i]['boxes'].detach().cpu()
             true_dict['labels'] = targets[i]['labels'].detach().cpu()
-            preds_dict['boxes'] = output[i]['boxes'].detach().cpu()
-            preds_dict['scores'] = output[i]['scores'].detach().cpu()
-            preds_dict['labels'] = output[i]['labels'].detach().cpu()
-            preds.append(preds_dict)
-            target.append(true_dict)
+            preds_dict['boxes'] = outputs[i]['boxes'].detach().cpu()
+            preds_dict['scores'] = outputs[i]['scores'].detach().cpu()
+            preds_dict['labels'] = outputs[i]['labels'].detach().cpu()
+            all_preds.append(preds_dict)
+            all_targets.append(true_dict)
     
     metrics = DetectionMetrics()
-    metrics.update(preds, targets)
+    metrics.update(all_preds, all_targets)
     results = metrics.compute()
     return results
